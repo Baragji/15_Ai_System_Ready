@@ -40,7 +40,7 @@ jobs:
       - name: Setup cosign
         uses: sigstore/cosign-installer@v3
         with:
-          cosign-release: 'latest'
+          cosign-release: 'v2.6.0'
 
       - name: Detect project type
         id: detect
