@@ -40,10 +40,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
 
       - name: Setup cosign
-        uses: sigstore/cosign-installer@4959ce089c160fddf62f7166543bf9ba5f3c1e3c # v3.6.0
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
         with:
           cosign-release: 'latest'
 
@@ -85,13 +85,13 @@ jobs:
 
       - name: Generate SBOM (SPDX via Syft)
         id: sbom
-        uses: anchore/sbom-action@e8d2a6937ecead383dfe75190d104edd1f9c5751 # v0.16.0
+        uses: anchore/sbom-action@61119d458adab75f756bc0b9e4bde25725f86a7a # v0.17.2
         with:
           format: spdx-json
           output-file: sbom.spdx.json
 
       - name: Upload evidence artifacts (SBOM, coverage)
-        uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 # v4.3.5
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: evidence-${{ github.run_id }}
           path: |
@@ -104,7 +104,7 @@ jobs:
 
       # Produce SLSA provenance for SBOM using GitHub OIDC/attestations
       - name: Generate SLSA provenance attestation (SBOM)
-        uses: actions/attest-build-provenance@210c1913531870065f03ce1f9440dd87bc0938cd # v1.4.0
+        uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6ac1a5dcde89d # v1.4.1
         with:
           subject-path: sbom.spdx.json
 
