@@ -1,0 +1,132 @@
+name: ci
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  merge_group: {}
+
+# Global least-privilege
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: required-checks
+    runs-on: ubuntu-latest
+    # Job-scoped least privilege: elevate only what is needed
+    permissions:
+      id-token: write
+      attestations: write
+      # contents: write  # not required (no commits in CI)
+      # packages: write  # only if pushing images (not used here)
+      # pull-requests: write  # only if posting PR comments (not used here)
+      # security-events: write # only if uploading SARIF (not used here)
+    env:
+      # Observability (flagged)
+      OTEL_ENABLED: true
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}
+      OTEL_SERVICE_NAME: github-ci
+      OTEL_RESOURCE_ATTRIBUTES: >
+        ci.pipeline.name=ci,
+        ci.pipeline.id=${{ github.run_id }},
+        ci.pipeline.run_attempt=${{ github.run_attempt }},
+        github.repository=${{ github.repository }},
+        github.ref=${{ github.ref }},
+        github.sha=${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'latest'
+
+      - name: Detect project type
+        id: detect
+        shell: bash
+        run: |
+          if [ -f package.json ]; then echo "type=node" >> $GITHUB_OUTPUT; fi
+          if [ -f pyproject.toml ] || [ -f requirements.txt ]; then echo "type=python" >> $GITHUB_OUTPUT; fi
+          if [ -f go.mod ]; then echo "type=go" >> $GITHUB_OUTPUT; fi
+
+      - name: Install deps and run tests with coverage (>=80%)
+        shell: bash
+        run: |
+          set -e
+          case "${{ steps.detect.outputs.type }}" in
+            node)
+              npm ci
+              npx --yes nyc --reporter=text-summary --check-coverage \
+                --branches=80 --lines=80 --functions=80 --statements=80 npm test
+              ;;
+            python)
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt || true
+              pip install pytest pytest-cov
+              pytest --maxfail=1 --disable-warnings -q \
+                --cov=. --cov-report=term --cov-fail-under=80
+              ;;
+            go)
+              go test ./... -coverprofile=coverage.out
+              pct=$(go tool cover -func=coverage.out | awk '/total:/ {print int($3)}')
+              if [ "$pct" -lt 80 ]; then echo "Coverage $pct% < 80%"; exit 1; fi
+              ;;
+            *)
+              echo "No supported project detected; policy requires tests+coverage >=80%."
+              exit 1
+              ;;
+          esac
+
+      - name: Generate SBOM (CycloneDX)
+        id: sbom
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx
+          output-file: sbom.cdx.json
+
+      - name: Upload evidence artifacts (SBOM, coverage)
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-${{ github.run_id }}
+          path: |
+            sbom.cdx.json
+            coverage.out
+            **/coverage-summary.json
+            **/coverage/lcov.info
+          if-no-files-found: warn
+          retention-days: 30
+
+      # Produce SLSA provenance for SBOM using GitHub OIDC/attestations
+      - name: Generate SLSA provenance attestation (SBOM)
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: sbom.cdx.json
+
+      # Verify attestation (cosign) as a required check
+      - name: Verify SLSA provenance attestation with cosign
+        shell: bash
+        run: |
+          set -e
+          cosign version
+          # Depending on your artifact/attestation storage, adjust identity and subject:
+          cosign verify-attestation \
+            --type slsaprovenance \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}(.*)" \
+            sbom.cdx.json
+
+      - name: Emit minimal OTel CI/CD spans (flagged)
+        if: env.OTEL_ENABLED == 'true'
+        shell: bash
+        run: |
+          echo "OTel emission enabled. Replace this step with your org-standard OTel emission (e.g., otel-cli) targeting $OTEL_EXPORTER_OTLP_ENDPOINT."
+          echo "Guarded by OTEL_ENABLED to allow rapid rollback."
+
+# Pinned Action SHAs (replace placeholders with exact SHAs before enabling required checks)
+# PINNED_SHA_actions_checkout_v4:    actions/checkout@<exact_SHA>
+# PINNED_SHA_sigstore_cosign_installer: sigstore/cosign-installer@<exact_SHA>
+# PINNED_SHA_anchore_sbom_action:   anchore/sbom-action@<exact_SHA>
+# PINNED_SHA_actions_upload_artifact_v4: actions/upload-artifact@<exact_SHA>
+# PINNED_SHA_actions_attest_build_provenance: actions/attest-build-provenance@<exact_SHA>

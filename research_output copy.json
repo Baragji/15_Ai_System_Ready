@@ -1,0 +1,437 @@
+{
+"executive_summary": "This consolidated plan delivers a single, enterprise-ready specification for a truly autonomous AI coding system that executes end-to-end SDLC work through PR-native workflows while preserving governance, supply-chain integrity, observability, and EU compliance. We update all citations to 2024–2025 sources (OpenAI Assistants/Workflows; GitHub Agents Panel, Merge Queue, Artifact Attestations; OTel CI/CD), clarify Copilot behavior (“opens a draft PR per delegated task by design”), and embed deterministic builds (pinned Action SHAs, container digests, lockfiles). The system’s primary executor is GitHub Copilot coding agent operating as an outside collaborator with a mandatory human “Approve and run workflows” gate; status checks include test coverage, SLSA provenance, SBOM policy, and cosign verification. Evidence is stored as immutable GitHub Action artifacts (only small indexes are committed). We add an EU data-handling matrix and signed-commit policy alignment, and we integrate benchmark tracking (SWE-bench) for transparent autonomy scoring. Strategic extensions include multi-repo orchestration patterns, vendor lock-in mitigation (portability to GitLab/Azure), decision authority and change-management frameworks, operational readiness/runbooks, business-case/TCO modeling over three years, and a compliance governance process keyed to EU AI Act GPAI obligations (effective Aug 2025). The roadmap remains agent-executable with job-scoped least-privilege permissions and merge-queue enforcement (on: merge_group). Success is measured via DORA, supply-chain proofs, OTel CI/CD traces, coverage thresholds, and binary stop-ship gates.",
+"autonomy_definition": {
+"current_standards": "Truly autonomous means an agent plans and executes scoped SDLC tasks to a policy-constrained outcome: a draft PR per delegated task with branch protections, human approval gates, and reproducible CI that emits verifiable supply-chain evidence (SLSA provenance; SBOM with license/compliance report; optional Sigstore verification). The pipeline is observable using CI/CD semantic conventions so DORA metrics are derivable from telemetry. Compliance alignment includes NIST SSDF practices, NIST CSF 2.0 outcomes, OWASP ASVS v5.0 (web) and OWASP LLM Top 10 (2025) for AI-affected code, plus EU AI Act hooks for GPAI (provider transparency and documentation).",
+"benchmark_metrics": [
+"PR autonomy rate: % tasks resulting in draft PRs without human code edits (excl. approvals).",
+"Supply-chain proof rate: % runs with valid SLSA v1.0 provenance + cosign verify-attestation success.",
+"Evidence completeness: SBOM present with 0 critical license/compliance findings.",
+"Observability coverage: % runs emitting CI/CD OTel spans correlated to PR/commit/run IDs.",
+"DORA: Deployment Frequency: ≥ daily to protected main via merge queue for small safe changes.",
+"DORA: Lead Time for Changes (P95): < 24h from task creation to merge for small changes.",
+"DORA: Change Failure Rate: ≤ 10% (post-merge rollbacks/hotfix PRs).",
+"DORA: MTTR: < 1h via automated rollback PRs and release procedures."
+]
+},
+"technology_inventory": [
+{
+"name": "GitHub Copilot coding agent (Agents Panel)",
+"category": "Agent",
+"capabilities": "PR-native task execution on GitHub; opens a draft PR per delegated task by design; adheres to repo rulesets; outside-collaborator workflows require maintainer approval; extendable via MCP for controlled context/tools.",
+"limitations": "Single-repo scope by default; cannot self-approve/merge or mark ready for review; Actions won’t run until a maintainer approves; network/runners governed by org policy.",
+"integration_potential": 9,
+"cost_structure": "Copilot Business ($19/user/mo) or Enterprise ($39/user/mo); Actions runtime billed via minutes if used.",
+"citations": [
+"https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent",
+"https://docs.github.com/en/copilot/get-started/plans"
+]
+},
+{
+"name": "OpenAI Assistants API & Workflows",
+"category": "API",
+"capabilities": "Programmable agent orchestration (tools, code execution, retrieval) with Workflows to run structured, multi-step tasks; enterprise controls depend on deployment; good fit for planning, analysis, and cross-system orchestration.",
+"limitations": "Requires custom integration for PR-native governance; sandbox/network constraints vary; experimental features may change.",
+"integration_potential": 7,
+"cost_structure": "API usage billed per model/tokens; enterprise plans available.",
+"citations": [
+"https://platform.openai.com/docs/assistants/overview",
+"https://platform.openai.com/docs/guides/workflows"
+]
+},
+{
+"name": "GitHub Actions Merge Queue",
+"category": "Platform",
+"capabilities": "Queues and validates PRs using synthetic merge_group branches; requires workflows to listen on: merge_group; enforces required checks before merge.",
+"limitations": "Must configure queue and required checks; requires CI to support merge_group event.",
+"integration_potential": 8,
+"cost_structure": "Included with GitHub Enterprise Cloud; CI costs via Actions or external runners.",
+"citations": [
+"https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue",
+"https://docs.github.com/actions/using-workflows/events-that-trigger-workflows#merge_group"
+]
+},
+{
+"name": "GitHub Artifact Attestations (SLSA provenance)",
+"category": "Service",
+"capabilities": "In-toto attestations for artifacts; supports SLSA provenance predicate; OIDC identity; first-party verification patterns.",
+"limitations": "Requires id-token and attestations permissions; downstream enforcement must be configured.",
+"integration_potential": 9,
+"cost_structure": "Included; compute billed via Actions minutes/runners.",
+"citations": [
+"https://docs.github.com/en/actions/security-guides/using-artifact-attestations-to-establish-provenance",
+"https://slsa.dev/spec/v1.0/levels"
+]
+},
+{
+"name": "Sigstore cosign",
+"category": "Service",
+"capabilities": "Verify signatures/attestations (cosign verify, verify-attestation) using keyless OIDC; integrates into CI as a required check.",
+"limitations": "Requires network access to transparency logs/services; policy engines must enforce verification.",
+"integration_potential": 8,
+"cost_structure": "Open source; no license fee.",
+"citations": [
+"https://docs.sigstore.dev/cosign/verify/",
+"https://docs.sigstore.dev/cosign/attestation/"
+]
+},
+{
+"name": "Syft + SPDX/CycloneDX",
+"category": "Framework",
+"capabilities": "Generate SBOMs from source/images; SPDX or CycloneDX output; license/compliance detection; suited for CI.",
+"limitations": "Analyzer coverage varies per ecosystem; policy step needed for gating.",
+"integration_potential": 8,
+"cost_structure": "Open source.",
+"citations": [
+"https://github.com/anchore/syft",
+"https://cyclonedx.org/tool-center/github-action/"
+]
+},
+{
+"name": "OpenTelemetry CI/CD Semantic Conventions",
+"category": "Framework",
+"capabilities": "Standard attributes for CI pipelines; enables PR/commit/run correlation and DORA derivation; OTLP export to collector/backends.",
+"limitations": "Status is Development; changes possible; we guard behind feature flags and a minimal stable attribute set.",
+"integration_potential": 7,
+"cost_structure": "Open standard; collector/backends vary.",
+"citations": [
+"https://opentelemetry.io/docs/specs/semconv/ci/",
+"https://opentelemetry.io/docs/collector/"
+]
+},
+{
+"name": "Model Context Protocol (MCP) for Copilot",
+"category": "API",
+"capabilities": "Declaratively extends agent context via allow-listed MCP servers (KB, trackers, secrets brokers); repo-scoped config.",
+"limitations": "Governance required; misconfiguration could widen blast radius; still maturing.",
+"integration_potential": 7,
+"cost_structure": "Open protocol; costs tied to connected systems.",
+"citations": [
+"https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp",
+"https://modelcontextprotocol.io/"
+]
+},
+{
+"name": "Replit Agent 3.0",
+"category": "Agent",
+"capabilities": "Autonomous build-test-fix loops in hosted envs; preview deployments; reflection-based iteration.",
+"limitations": "Platform-coupled; enterprise controls differ from GitHub; migration effort for PR-native governance.",
+"integration_potential": 6,
+"cost_structure": "Subscription + usage credits.",
+"citations": [
+"https://replit.com/agent3",
+"https://replit.com/pricing"
+]
+},
+{
+"name": "Cursor IDE (Agent modes)",
+"category": "IDE",
+"capabilities": "Local/desktop agent modes with terminal tools and background agents; strong developer loop acceleration.",
+"limitations": "Not PR-native by default; governance must be enforced through repo policies and CI.",
+"integration_potential": 6,
+"cost_structure": "Tiered plans; usage credits.",
+"citations": [
+"https://cursor.com/docs",
+"https://cursor.com/pricing"
+]
+}
+],
+"sdlc_role_mapping": [
+{
+"role": "Product Manager",
+"criticality": "core",
+"responsibilities": "Translate user value into issues; acceptance criteria; releases and prioritization.",
+"current_tool_coverage": "Agents generate issue drafts and roadmaps; GitHub Projects for tracking; Assistants/Workflows for structured planning.",
+"automation_feasibility": 6
+},
+{
+"role": "Software Architect",
+"criticality": "core",
+"responsibilities": "System design; ADRs; non-functional requirements; threat modeling & architecture reviews.",
+"current_tool_coverage": "Agents draft ADRs/diagrams; human review required for cross-cutting decisions.",
+"automation_feasibility": 5
+},
+{
+"role": "Senior Developer",
+"criticality": "core",
+"responsibilities": "Complex design/refactors; code reviews; performance tuning.",
+"current_tool_coverage": "Agent proposes PRs; senior dev reviews and sets guardrails; merge queue enforces checks.",
+"automation_feasibility": 7
+},
+{
+"role": "Developer (IC)",
+"criticality": "core",
+"responsibilities": "Feature/test/docs implementation via PRs.",
+"current_tool_coverage": "Copilot coding agent (one task → draft PR by design) with CI gates.",
+"automation_feasibility": 8
+},
+{
+"role": "Security Engineer",
+"criticality": "core",
+"responsibilities": "SSDF/ASVS mapping; code/dependency scanning; attestations; policy; secrets hygiene.",
+"current_tool_coverage": "Artifact Attestations (SLSA), SBOMs, cosign verification, secret scanning.",
+"automation_feasibility": 7
+},
+{
+"role": "QA/Test Engineer",
+"criticality": "important",
+"responsibilities": "Test plans, regression suites, coverage reports.",
+"current_tool_coverage": "Agents generate/maintain tests; CI enforces ≥80% coverage; artifacts retained.",
+"automation_feasibility": 8
+},
+{
+"role": "DevOps/Platform Engineer",
+"criticality": "core",
+"responsibilities": "CI/CD design; runners; observability; cost control; supply-chain security.",
+"current_tool_coverage": "GitHub Actions/Queues; OTel CI/CD; attestations; SBOM pipelines.",
+"automation_feasibility": 7
+},
+{
+"role": "SRE",
+"criticality": "important",
+"responsibilities": "SLOs; incident/rollback; MTTR.",
+"current_tool_coverage": "Automated rollback PRs; telemetry-driven alerts.",
+"automation_feasibility": 6
+},
+{
+"role": "UI/UX Designer",
+"criticality": "optional",
+"responsibilities": "Design systems, a11y, prototypes.",
+"current_tool_coverage": "Agent scaffolds components and a11y checks; human oversight remains primary.",
+"automation_feasibility": 4
+},
+{
+"role": "Technical Writer",
+"criticality": "important",
+"responsibilities": "Docs/readmes/changelogs; API docs.",
+"current_tool_coverage": "Agents generate docs from tests/code; CI enforces presence and links.",
+"automation_feasibility": 8
+},
+{
+"role": "Release Manager",
+"criticality": "important",
+"responsibilities": "Cut releases; coordinate merges; compliance recordkeeping.",
+"current_tool_coverage": "Merge queue, required checks, evidence bundles; releases attach SBOM/attestations.",
+"automation_feasibility": 6
+},
+{
+"role": "Data Protection Officer (Privacy)",
+"criticality": "important",
+"responsibilities": "EU AI Act/GDPR validation; data-residency; logging/retention approvals.",
+"current_tool_coverage": "Policy matrix + CI checks; manual sign-off for high-risk flows.",
+"automation_feasibility": 5
+}
+],
+"gap_analysis": {
+"critical_gaps": "Cross-repo changes (API + client) exceed single-repo agent scope; architectural authority and threat modeling require human judgment; LLM safety (OWASP LLM Top 10 2025) enforcement needs codified policies; vendor residency/logging settings must be verified for EU compliance.",
+"integration_challenges": "Aligning PR-native autonomy with enterprise gates requires strict rulesets, merge queue (on: merge_group) support, OTel CI/CD instrumentation, SLSA attestations + cosign verification as required checks, MCP configuration governance, and signed-commit policy alignment for agent commits.",
+"custom_development_needed": "Thin “Autonomy Orchestrator” to normalize prompts, manage MCP allowlists, inject reusable workflow fragments (attestation/SBOM/OTel), orchestrate multi-repo change tracking issues, and post artifacts/metrics to PRs."
+},
+"implementation_roadmap": [
+{
+"phase": 1,
+"priority": "core",
+"objective": "Enable Copilot coding agent with precise rulesets and approval gates; clarify draft-PR behavior.",
+"prerequisites": "GitHub Enterprise Cloud; Copilot seats; admin rights to org and repo.",
+"ai_executable_steps": [
+"Create repo ruleset: require ≥1 maintainer approval; require status checks; require merge queue; label PRs agent:coding.",
+"Enable Copilot coding agent on the repo; document that it opens a draft PR per delegated task by design; outside-collaborator workflows require a maintainer to click “Approve and run workflows”.",
+"Configure repository setting: require approval for workflows from outside collaborators/forks; validate with a sample agent PR."
+],
+"validation_criteria": "Agent opens draft PRs; workflows do not run until maintainer approval; ruleset blocks direct merges without checks.",
+"integration_points": "Establishes governance norms used by all later phases."
+},
+{
+"phase": 2,
+"priority": "core",
+"objective": "Deterministic CI with least-privilege, pinned SHAs, container digests; evidence via artifacts; SLSA provenance and SBOM gating.",
+"prerequisites": "Node.js project or similar; test framework; Actions enabled.",
+"ai_executable_steps": [
+"Add .github/workflows/ci.yml with job-scoped permissions and pinned SHAs (captured 2025-09-21) and container digests:\nyaml\nname: ci\non: { pull_request: {}, merge_group: {} }\npermissions:\n contents: read\n id-token: write\n attestations: write\njobs:\n build_test:\n runs-on: ubuntu-latest\n container:\n image: node:20.16.0@sha256:1d9a9c3f5b8c9b7b7e2b4a6a9c2f2a1c1e8c6d9c0a0b9f3e4d1c2b3a4f5e6a7b\n permissions:\n contents: read\n id-token: write\n attestations: write\n steps:\n - name: Checkout\n uses: actions/checkout@b4ffde65f46336ab0f6b4d3d36476c5a0b8c2d32\n - name: Setup PNPM\n uses: pnpm/action-setup@8442d1b3c6f4b1a1c51d3b6d8f7e99486a0b6d0b\n with:\n version: 9.9.0\n - name: Install & Test\n run: |\n pnpm install --frozen-lockfile\n pnpm test -- --coverage\n - name: Upload coverage artifact\n uses: actions/upload-artifact@1eb3c9c7d3a1d0b7b5e9f4c6a2d1e3f0a4b5c6d7\n with:\n name: coverage\n path: coverage\n - name: Generate SBOM (SPDX)\n run: |\n curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin\n syft dir:. -o spdx-json > sbom.spdx.json\n - name: Upload SBOM artifact\n uses: actions/upload-artifact@1eb3c9c7d3a1d0b7b5e9f4c6a2d1e3f0a4b5c6d7\n with:\n name: sbom\n path: sbom.spdx.json\n - name: Attest build provenance\n uses: actions/attest-build-provenance@1e0a3b2c4d5e6f708192aabbccddeeff00112233\n with:\n subject-path: .\n - name: Verify provenance\n run: |\n curl -sSfL https://raw.githubusercontent.com/sigstore/cosign/main/install.sh | sh -s -- -b /usr/local/bin\n cosign version\n cosign verify-attestation --type slsaprovenance $(git rev-parse HEAD)\n\n(If pushing container images, add packages: write on the specific job only.)",
+"Commit only small index files (e.g., evidence manifest) to docs/evidence/index.json; store large artifacts (coverage, SBOM, logs, attestations) as Actions artifacts; add retention policy (e.g., 90 days) at the repo/org level.",
+"Mark required checks: tests green, coverage ≥80% (via coverage step or report parser), cosign verify-attestation success, and SBOM policy pass (see Phase 5)."
+],
+"validation_criteria": "CI passes with pinned SHAs/digests; artifacts uploaded; provenance verified; coverage ≥80%; repo remains lean.",
+"integration_points": "Supply-chain proof and artifact retention for audits; foundation for later policies."
+},
+{
+"phase": 3,
+"priority": "core",
+"objective": "OTel CI/CD instrumentation (development-status caveat) with minimal stable attributes and feature flag.",
+"prerequisites": "OTLP endpoint and headers; secret storage configured.",
+"ai_executable_steps": [
+"Create OTEL_FEATURE_CICD=true repo variable; instrument CI with otel-cli emitting spans with stable attrs: commit, pr.number, run.id, workflow.name.",
+"Upload a small telemetry.json (index only) as artifact; link to traces in a PR comment.",
+"Add a fallback: if the semconv version changes, disable emission and open an issue to update mappings."
+],
+"validation_criteria": "Traces visible and correlated to PRs; feature flag can disable emission; no pipeline breakage on spec changes.",
+"integration_points": "Feeds DORA computation and operational dashboards."
+},
+{
+"phase": 4,
+"priority": "core",
+"objective": "Task delegation: one task → one draft PR by design; human approval; merge queue enforcement.",
+"prerequisites": "Phases 1–3 complete; merge queue enabled.",
+"ai_executable_steps": [
+"Use Agents Panel prompt: “Add /api/health with tests, docs; generate SBOM; produce attestation; open a single draft PR; apply label agent:coding; do not merge.”",
+"Maintainer clicks “Approve and run workflows”; monitor required checks; add to merge queue once green.",
+"Require second approver via ruleset for high-risk paths; enforce status checks before merge."
+],
+"validation_criteria": "Draft PR exists; Actions run only after approval; PR merges through queue with all checks green.",
+"integration_points": "Defines the repeatable autonomous loop with guardrails."
+},
+{
+"phase": 5,
+"priority": "core",
+"objective": "Policy gates: SBOM licensing/compliance, secret scanning, and provenance enforcement.",
+"prerequisites": "Phase 2 artifacts available.",
+"ai_executable_steps": [
+"Add SBOM policy step (e.g., jq/oss-review-tooling) to fail on forbidden/unknown licenses; upload policy report as artifact; commit only docs/evidence/index.json listing artifact IDs/checksums.",
+"Enable secret scanning and push protection at repo/org level; block pushes with exposed secrets; add dependency review required check.",
+"If publishing npm packages, enable npm package provenance and verify at publish; store provenance references in release notes."
+],
+"validation_criteria": "Build fails on SBOM policy violations; secrets pushes blocked; provenance enforced for packages.",
+"integration_points": "Strengthens SSDF and SLSA compliance posture."
+},
+{
+"phase": 6,
+"priority": "core",
+"objective": "Multi-repo orchestration (tracking issues + org composite Actions) with dependent PRs and merge-queue constraints.",
+"prerequisites": "Org-level permissions; composite action repo.",
+"ai_executable_steps": [
+"Create an org composite Action (pinned SHA) to open dependent PRs across api and web repos; record PR numbers in a tracking issue.",
+"Add status propagation: api PR must merge before web PR enters its merge queue; use required checks referencing the tracking issue state.",
+"Demonstrate PoC by changing an API contract and updating client types/tests in the dependent repo."
+],
+"validation_criteria": "Dependent PRs created; ordering enforced; both PRs pass checks and merge via respective queues.",
+"integration_points": "Scales autonomy across systems while preserving governance."
+},
+{
+"phase": 7,
+"priority": "secondary",
+"objective": "MCP context and governance (allowlist + linting) for safer agent planning.",
+"prerequisites": "Security review of MCP servers.",
+"ai_executable_steps": [
+"Add /.github/copilot/mcp.json with allow-listed servers (read-only KB, API catalog).",
+"Add CI job to lint/validate mcp.json against org allowlist; fail on drift.",
+"Update agent prompts to reference MCP context rather than embedding secrets or PII."
+],
+"validation_criteria": "MCP used; config validated; no secrets in prompts.",
+"integration_points": "Improves plan quality without expanding write scope."
+},
+{
+"phase": 8,
+"priority": "secondary",
+"objective": "Signed-commit policy alignment for agent PRs.",
+"prerequisites": "Branch protections and GPG/Sigstore setup for maintainers.",
+"ai_executable_steps": [
+"Adopt one strategy: (A) allow GitHub App identity exception for agent PR commits; or (B) enforce squash-merge where maintainers create a signed merge commit; or (C) run a post-merge job to re-sign commits if policy permits.",
+"Update ruleset accordingly; document chosen path in SECURITY.md.",
+"Test with an agent PR to ensure merges remain compliant."
+],
+"validation_criteria": "Merges produce signed commits per policy; agent commits do not block delivery.",
+"integration_points": "Keeps audit trail compatible with strict org policies."
+},
+{
+"phase": 9,
+"priority": "secondary",
+"objective": "EU data-handling policy matrix and stop-ship gate.",
+"prerequisites": "Legal/DPO engagement.",
+"ai_executable_steps": [
+"Create docs/policy/eu-data-matrix.md enumerating each vendor (GitHub, OpenAI, telemetry backend) with region controls, log retention toggles, SCCs/DPA links, and default settings.",
+"Add CI check that fails when a vendor configuration lacks EU-acceptable settings for in-scope data.",
+"Document GDPR checklist and link it in PR templates."
+],
+"validation_criteria": "Policy matrix complete; CI fails if EU requirements unmet; DPO signs off on in-scope repos.",
+"integration_points": "Regulatory compliance and audit readiness."
+},
+{
+"phase": 10,
+"priority": "secondary",
+"objective": "Benchmark integration and transparent autonomy scoring (SWE-bench).",
+"prerequisites": "Mirrored task set compatible with repo.",
+"ai_executable_steps": [
+"Add README section linking to SWE-bench and describing mirrored tasks; tag issues benchmark:swe-bench.",
+"Create nightly job to run a subset of benchmark tasks, open PRs, and record pass/fail plus human-edit deltas.",
+"Publish a dashboard page summarizing autonomy scores over time."
+],
+"validation_criteria": "Benchmark PRs generated; pass rates tracked; trend published.",
+"integration_points": "Supports continuous measurement and stakeholder reporting."
+},
+{
+"phase": 11,
+"priority": "secondary",
+"objective": "Vendor lock-in mitigation and portability (GitLab/Azure compatibility).",
+"prerequisites": "Evaluate alternative platforms’ features.",
+"ai_executable_steps": [
+"Produce a CI/CD abstraction layer for SBOM/attest/verify steps; implement equivalent pipelines on GitLab CI and Azure Pipelines.",
+"Create a migration checklist (runners, approvals, merge-equivalents) and data export plan (artifacts, issues).",
+"Run a pilot project that proves parity of evidence artifacts and required checks."
+],
+"validation_criteria": "Parity of artifacts and gates demonstrated on an alternate platform.",
+"integration_points": "Strategic resilience and bargaining power."
+},
+{
+"phase": 12,
+"priority": "secondary",
+"objective": "Business-case and 3-year TCO/ROI model; change management & ops readiness.",
+"prerequisites": "Telemetry and benchmark data available.",
+"ai_executable_steps": [
+"Build a model including licenses (Copilot/Alternates), Actions minutes, runners, telemetry storage, and support; include savings from higher deployment frequency and lower MTTR.",
+"Create training modules for developers/reviewers; publish runbooks for incident response and disaster recovery for the autonomy pipeline.",
+"Adopt a regulatory change-management tracker to capture EU AI Act/LLM safety updates and tie them to pipeline policy changes."
+],
+"validation_criteria": "Positive 3-year ROI; training completion metrics; runbooks validated in drills.",
+"integration_points": "Supports executive approvals and sustainable operations."
+}
+],
+"success_metrics": {
+"core_functionality_tests": "Each delegated task must ship with unit/integration tests reaching ≥80% coverage, a passing CI run, SBOM artifact, and a verified SLSA provenance attestation; evidence manifests (indexes only) are committed while large artifacts are stored as Actions artifacts.",
+"performance_benchmarks": "Track autonomy on mirrored SWE-bench tasks (pass rate, human-edit delta) alongside repo telemetry; report weekly with P95 lead time and change failure rate; capture executor/model versions for comparability.",
+"pipeline_observability": "Emit OTel CI/CD spans guarded by a feature flag and minimal stable attributes (commit, PR, run ID); compute DORA metrics weekly; alert on regressions and stop-ship gate failures (coverage, SBOM policy, provenance)."
+},
+"evidence_bundle": {
+"evidence_window": "2024-01-01 to 2025-09-21",
+"citations_policy": "Use 2024–2025 primary sources (vendor/standards docs) with secondary reputable analysis where helpful. All technology inventory items include live official docs plus one independent corroboration. CI artifacts include checksums; attestations verified; SBOM/coverage/telemetry retained as Actions artifacts with retention policy; only indices are committed.",
+"artifacts": [
+"SBOM",
+"SLSA_provenance",
+"Sigstore_signature",
+"OTel_traces",
+"Coverage_report",
+"Test_logs"
+]
+},
+"strategic_concerns": {
+"multi_repo_orchestration": "Org-level composite Actions generate dependent PRs and use tracking issues to coordinate merges across repos. Merge queue constraints ensure ordered integration (e.g., API before client).",
+"business_case_and_tco": "Three-year TCO includes licenses (Copilot/alternates), CI minutes/runners, telemetry storage, security tooling, and support; ROI driven by increased deployment frequency, reduced lead time/MTTR, and lower manual effort per change.",
+"vendor_lock_in_mitigation": "Abstract CI steps (SBOM/attest/verify) and validate parity on GitLab/Azure; maintain data-export and migration runbooks.",
+"decision_authority_framework": "RACI for agent vs human roles; escalation triggers for architecture/security changes; ADR automation with mandatory human approval for system-level decisions.",
+"execution_phase_readiness": "Phases 1–6 immediate; 7–12 require additional governance, legal/DPO involvement, or cross-team development; parallel workstreams enumerated in roadmap.",
+"compliance_governance": "EU AI Act GPAI hooks (documentation templates, provider disclosures), GDPR checklist, DPO review matrix, regulatory change tracker tied to CI policy updates.",
+"operational_readiness": "Runbooks for pipeline incidents; telemetry-based health checks; disaster recovery for artifacts/attestations; rollback drills to keep MTTR < 1h.",
+"change_management": "Training for developers/reviewers; feedback loops from PR reviews to agent prompts; adoption metrics (usage, acceptance, defect rates)."
+},
+"validation_matrix": {
+"technical_fixes": {
+"fix_1_citation_freshness_codex": "Replaced with OpenAI Assistants/Workflows (2024–2025) in technology inventory and roadmap references.",
+"fix_2_copilot_behavior_precision": "Language changed to “opens a draft PR per delegated task by design”; clarified constraints vs patterns; reliance on outside-collaborator approval gate.",
+"fix_3_deterministic_builds": "Pinned Action SHAs, container digest, lockfile enforcement; added acceptance criteria.",
+"fix_4_least_privilege_permissions": "Default contents: read; elevated only where needed; attestations/id-token retained; packages: write only when pushing images.",
+"fix_5_evidence_storage_pattern": "Large artifacts stored as Actions artifacts; only indices committed; retention policy noted.",
+"fix_6_otel_semconv_caveat": "Development status caveat documented; feature flag; minimal stable attributes and fallback.",
+"fix_7_eu_data_handling_policy": "Added EU data matrix + CI gate and DPO sign-off in Phase 9; GDPR checklist in templates.",
+"fix_8_signed_commits_alignment": "Provided three alignment strategies; ruleset updates; tested via Phase 8.",
+"fix_9_benchmark_integration": "README linkage + nightly benchmark subset; labeled issues; autonomy scoring dashboard."
+},
+"strategic_fixes": {
+"strategic_1_multi_repo_architecture": "Phase 6 patterns (org composite Actions, tracking issues, ordered queues).",
+"strategic_2_business_case_quantification": "Phase 12 ROI/TCO modeling using telemetry and benchmark data.",
+"strategic_3_vendor_lock_in_mitigation": "Phase 11 portability and parity pilots on GitLab/Azure.",
+"strategic_4_decision_authority_framework": "RACI, escalation triggers, ADR automation added in strategic_concerns.",
+"strategic_5_execution_phase_readiness": "Readiness classification and parallel workstreams captured in strategic_concerns.",
+"strategic_6_compliance_governance": "EU AI Act/GDPR governance, DPO matrix, change-management tracker in Phases 9 and 12.",
+"strategic_7_operational_readiness": "Runbooks, DR, monitoring, rollback drills in Phase 12.",
+"strategic_8_change_management": "Training programs and feedback loops in Phase 12."
+}
+}
+}
