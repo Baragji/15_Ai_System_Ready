@@ -1,23 +1,32 @@
-# Initialize CI with SBOM + SLSA provenance + cosign verification (merge_queue-ready)
+# Pull Request
 
 ## Summary
-- Adds `.github/workflows/ci.yml` with:
-  - Least-privilege permissions (id-token: write, attestations: write; default contents: read).
-  - Events: `pull_request` and `merge_group` (required for merge queue status checks).
-  - Tests with coverage ≥80%, SBOM generation (CycloneDX), SLSA provenance attestation, cosign verify-attestation.
-  - Evidence uploaded as Actions artifacts (no large evidence committed).
+<!-- Brief description of changes -->
 
 ## Outside Collaborator Gate
-- Copilot coding agent is treated as an outside collaborator. Draft PR workflows do not run automatically.
-- Maintainer must click “Approve and run workflows” on this PR for CI to execute.
+**Note for AI Agents:** This repository treats AI coding agents as outside collaborators. A maintainer must click "Approve and run workflows" before CI executes.
 
-## Required Checks (merge-queue enforced)
-- `ci (required-checks)` — passes only if:
-  - Tests green.
-  - Coverage ≥80%.
-  - SBOM policy pass (SBOM artifact present).
-  - cosign verify-attestation pass.
+## Required Checks
+Before this PR can be merged, the following checks must pass:
 
-## Notes
-- Merge queue requires workflows to listen on the `merge_group` event.
-- OTel CI/CD spans are guarded by `OTEL_ENABLED` for quick rollback if semconv changes.
+- [ ] **Tests** - All tests pass
+- [ ] **Coverage** - Code coverage ≥80%
+- [ ] **SBOM Policy** - SBOM artifact generated and uploaded
+- [ ] **Cosign Verify** - SLSA provenance attestation verified with cosign
+
+## Type of Change
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] CI/CD or tooling change
+
+## Labels
+<!-- For AI agents, ensure the following label is applied: -->
+- `agent:coding` (for AI-generated PRs)
+
+## Additional Notes
+<!-- Any additional information, context, or considerations -->
+
+---
+*This PR template ensures compliance with repository governance and security requirements.*
