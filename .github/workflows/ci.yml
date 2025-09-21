@@ -99,7 +99,7 @@ jobs:
 
       # Produce SLSA provenance for SBOM using GitHub OIDC/attestations
       - name: Generate SLSA provenance attestation (SBOM)
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v3
         with:
           subject-path: sbom.cdx.json
 
@@ -130,4 +130,4 @@ jobs:
 # PINNED_SHA_sigstore_cosign_installer: sigstore/cosign-installer@<exact_SHA>
 # PINNED_SHA_anchore_sbom_action:   anchore/sbom-action@<exact_SHA>
 # PINNED_SHA_actions_upload_artifact_v4: actions/upload-artifact@<exact_SHA>
-# PINNED_SHA_actions_attest_build_provenance: actions/attest-build-provenance@<exact_SHA>
+# PINNED_SHA_actions_attest_build_provenance: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
