@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  merge_group: {} # Required for merge queue status checks
+  merge_group: {}
 
 # Global least-privilege
 permissions:
@@ -13,20 +13,17 @@ jobs:
   ci:
     name: required-checks
     runs-on: ubuntu-latest
-    # Job-scoped minimal permissions (ASVS 5.0 V12.1.1 compliance)
-    # contents: read - Access repository code (required)
-    # id-token: write - Generate OIDC tokens for attestations (required)  
-    # attestations: write - Create SLSA provenance attestations (required)
-    # packages: write - NOT GRANTED (only if attesting/pushing images)
-    # pull-requests: write - NOT GRANTED (only if posting PR comments)
-    # security-events: write - NOT GRANTED (only if uploading SARIF)
+    # Job-scoped least privilege: elevate only what is needed
     permissions:
       id-token: write
       attestations: write
-      contents: read
+      # contents: write  # not required (no commits in CI)
+      # packages: write  # only if pushing images (not used here)
+      # pull-requests: write  # only if posting PR comments (not used here)
+      # security-events: write # only if uploading SARIF (not used here)
     env:
-      # OTel observability guarded by repo variable
-      OTEL_FEATURE_CICD: ${{ vars.OTEL_FEATURE_CICD }}
+      # Observability (flagged)
+      OTEL_ENABLED: true
       OTEL_SERVICE_NAME: github-ci
       OTEL_RESOURCE_ATTRIBUTES: >
         ci.pipeline.name=ci,
@@ -34,16 +31,14 @@ jobs:
         ci.pipeline.run_attempt=${{ github.run_attempt }},
         github.repository=${{ github.repository }},
         github.ref=${{ github.ref }},
-        github.sha=${{ github.sha }},
-        github.pr_number=${{ github.event.pull_request.number || '' }},
-        git.commit.sha=${{ github.sha }}
+        github.sha=${{ github.sha }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@v4
 
       - name: Setup cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+        uses: sigstore/cosign-installer@v3
         with:
           cosign-release: 'latest'
 
@@ -83,19 +78,19 @@ jobs:
               ;;
           esac
 
-      - name: Generate SBOM (SPDX via Syft)
+      - name: Generate SBOM (CycloneDX)
         id: sbom
-        uses: anchore/sbom-action@61119d458adab75f756bc0b9e4bde25725f86a7a # v0.17.2
+        uses: anchore/sbom-action@v0
         with:
-          format: spdx-json
-          output-file: sbom.spdx.json
+          format: cyclonedx
+          output-file: sbom.cdx.json
 
       - name: Upload evidence artifacts (SBOM, coverage)
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@v4
         with:
           name: evidence-${{ github.run_id }}
           path: |
-            sbom.spdx.json
+            sbom.cdx.json
             coverage.out
             **/coverage-summary.json
             **/coverage/lcov.info
@@ -104,8 +99,9 @@ jobs:
 
       # Produce SLSA provenance for SBOM using GitHub OIDC/attestations
       - name: Generate SLSA provenance attestation (SBOM)
+        uses: actions/attest-build-provenance@v3
         with:
-          subject-path: sbom.spdx.json
+          subject-path: sbom.cdx.json
 
       # Verify attestation (cosign) as a required check
       - name: Verify SLSA provenance attestation with cosign
@@ -113,24 +109,25 @@ jobs:
         run: |
           set -e
           cosign version
-          # Verify attestation with proper identity verification
+          # Depending on your artifact/attestation storage, adjust identity and subject:
           cosign verify-attestation \
             --type slsaprovenance \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            --certificate-identity-regexp "https://github.com/${{ github.repository }}.*" \
-            sbom.spdx.json
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}(.*)" \
+            sbom.cdx.json
 
       - name: Emit minimal OTel CI/CD spans (flagged)
-        if: vars.OTEL_FEATURE_CICD == 'true'
+        if: env.OTEL_ENABLED == 'true'
         env:
           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://otel-collector:4317' }}
         shell: bash
         run: |
-          echo "OTel emission enabled via OTEL_FEATURE_CICD=true"
-          echo "Minimal OTel emission with correlation data:"
-          echo "  - Commit SHA: ${{ github.sha }}"
-          echo "  - PR Number: ${{ github.event.pull_request.number || 'N/A' }}"
-          echo "  - Run ID: ${{ github.run_id }}"
-          echo "Replace this step with your org-standard OTel emission (e.g., otel-cli) targeting $OTEL_EXPORTER_OTLP_ENDPOINT."
-          echo "Guarded by OTEL_FEATURE_CICD variable to allow rapid rollback."
+          echo "OTel emission enabled. Replace this step with your org-standard OTel emission (e.g., otel-cli) targeting $OTEL_EXPORTER_OTLP_ENDPOINT."
+          echo "Guarded by OTEL_ENABLED to allow rapid rollback."
 
+# Pinned Action SHAs (replace placeholders with exact SHAs before enabling required checks)
+# PINNED_SHA_actions_checkout_v4:    actions/checkout@<exact_SHA>
+# PINNED_SHA_sigstore_cosign_installer: sigstore/cosign-installer@<exact_SHA>
+# PINNED_SHA_anchore_sbom_action:   anchore/sbom-action@<exact_SHA>
+# PINNED_SHA_actions_upload_artifact_v4: actions/upload-artifact@<exact_SHA>
+# PINNED_SHA_actions_attest_build_provenance: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
