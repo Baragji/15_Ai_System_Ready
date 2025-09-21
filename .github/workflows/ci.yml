@@ -13,17 +13,14 @@ jobs:
   ci:
     name: required-checks
     runs-on: ubuntu-latest
-    # Job-scoped least privilege: elevate only what is needed
+    # Job-scoped minimal permissions as specified
     permissions:
       id-token: write
       attestations: write
-      # contents: write  # not required (no commits in CI)
-      # packages: write  # only if pushing images (not used here)
-      # pull-requests: write  # only if posting PR comments (not used here)
-      # security-events: write # only if uploading SARIF (not used here)
+      contents: read
     env:
-      # Observability (flagged)
-      OTEL_ENABLED: true
+      # OTel observability guarded by repo variable
+      OTEL_FEATURE_CICD: ${{ vars.OTEL_FEATURE_CICD }}
       OTEL_SERVICE_NAME: github-ci
       OTEL_RESOURCE_ATTRIBUTES: >
         ci.pipeline.name=ci,
@@ -31,14 +28,16 @@ jobs:
         ci.pipeline.run_attempt=${{ github.run_attempt }},
         github.repository=${{ github.repository }},
         github.ref=${{ github.ref }},
-        github.sha=${{ github.sha }}
+        github.sha=${{ github.sha }},
+        github.pr_number=${{ github.event.pull_request.number || '' }},
+        git.commit.sha=${{ github.sha }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Setup cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@4959ce089c160fddf62f7166543bf9ba5f3c1e3c # v3.6.0
         with:
           cosign-release: 'latest'
 
@@ -78,19 +77,19 @@ jobs:
               ;;
           esac
 
-      - name: Generate SBOM (CycloneDX)
+      - name: Generate SBOM (SPDX via Syft)
         id: sbom
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e8d2a6937ecead383dfe75190d104edd1f9c5751 # v0.16.0
         with:
-          format: cyclonedx
-          output-file: sbom.cdx.json
+          format: spdx-json
+          output-file: sbom.spdx.json
 
       - name: Upload evidence artifacts (SBOM, coverage)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 # v4.3.5
         with:
           name: evidence-${{ github.run_id }}
           path: |
-            sbom.cdx.json
+            sbom.spdx.json
             coverage.out
             **/coverage-summary.json
             **/coverage/lcov.info
@@ -99,9 +98,9 @@ jobs:
 
       # Produce SLSA provenance for SBOM using GitHub OIDC/attestations
       - name: Generate SLSA provenance attestation (SBOM)
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@210c1913531870065f03ce1f9440dd87bc0938cd # v1.4.0
         with:
-          subject-path: sbom.cdx.json
+          subject-path: sbom.spdx.json
 
       # Verify attestation (cosign) as a required check
       - name: Verify SLSA provenance attestation with cosign
@@ -109,25 +108,24 @@ jobs:
         run: |
           set -e
           cosign version
-          # Depending on your artifact/attestation storage, adjust identity and subject:
+          # Verify attestation with proper identity verification
           cosign verify-attestation \
             --type slsaprovenance \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            --certificate-identity-regexp "https://github.com/${{ github.repository }}(.*)" \
-            sbom.cdx.json
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}.*" \
+            sbom.spdx.json
 
       - name: Emit minimal OTel CI/CD spans (flagged)
-        if: env.OTEL_ENABLED == 'true'
+        if: vars.OTEL_FEATURE_CICD == 'true'
         env:
           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://otel-collector:4317' }}
         shell: bash
         run: |
-          echo "OTel emission enabled. Replace this step with your org-standard OTel emission (e.g., otel-cli) targeting $OTEL_EXPORTER_OTLP_ENDPOINT."
-          echo "Guarded by OTEL_ENABLED to allow rapid rollback."
+          echo "OTel emission enabled via OTEL_FEATURE_CICD=true"
+          echo "Minimal OTel emission with correlation data:"
+          echo "  - Commit SHA: ${{ github.sha }}"
+          echo "  - PR Number: ${{ github.event.pull_request.number || 'N/A' }}"
+          echo "  - Run ID: ${{ github.run_id }}"
+          echo "Replace this step with your org-standard OTel emission (e.g., otel-cli) targeting $OTEL_EXPORTER_OTLP_ENDPOINT."
+          echo "Guarded by OTEL_FEATURE_CICD variable to allow rapid rollback."
 
-# Pinned Action SHAs (replace placeholders with exact SHAs before enabling required checks)
-# PINNED_SHA_actions_checkout_v4:    actions/checkout@<exact_SHA>
-# PINNED_SHA_sigstore_cosign_installer: sigstore/cosign-installer@<exact_SHA>
-# PINNED_SHA_anchore_sbom_action:   anchore/sbom-action@<exact_SHA>
-# PINNED_SHA_actions_upload_artifact_v4: actions/upload-artifact@<exact_SHA>
-# PINNED_SHA_actions_attest_build_provenance: actions/attest-build-provenance@<exact_SHA>
