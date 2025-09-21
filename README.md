@@ -39,8 +39,16 @@ The following checks must pass before a PR can be merged:
 
 ## Repository Variables
 
-The following repository variable should be configured:
+The following repository variable must be configured manually via GitHub UI:
 - `OTEL_FEATURE_CICD=true` - Enables OpenTelemetry instrumentation in CI/CD pipeline
+
+**To configure this variable:**
+1. Go to repository Settings → Secrets and variables → Actions
+2. Click on the "Variables" tab
+3. Click "New repository variable"
+4. Name: `OTEL_FEATURE_CICD`
+5. Value: `true`
+6. Click "Add variable"
 
 ## Observability
 
