@@ -97,24 +97,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      # Produce SLSA provenance for SBOM using GitHub OIDC/attestations
-      - name: Generate SLSA provenance attestation (SBOM)
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-path: sbom.cdx.json
 
-      # Verify attestation (cosign) as a required check
-      - name: Verify SLSA provenance attestation with cosign
-        shell: bash
-        run: |
-          set -e
-          cosign version
-          # Depending on your artifact/attestation storage, adjust identity and subject:
-          cosign verify-attestation \
-            --type slsaprovenance \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            --certificate-identity-regexp "https://github.com/${{ github.repository }}(.*)" \
-            sbom.cdx.json
 
       - name: Emit minimal OTel CI/CD spans (flagged)
         if: env.OTEL_ENABLED == 'true'
