@@ -24,7 +24,6 @@ jobs:
     env:
       # Observability (flagged)
       OTEL_ENABLED: true
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}
       OTEL_SERVICE_NAME: github-ci
       OTEL_RESOURCE_ATTRIBUTES: >
         ci.pipeline.name=ci,
@@ -119,6 +118,8 @@ jobs:
 
       - name: Emit minimal OTel CI/CD spans (flagged)
         if: env.OTEL_ENABLED == 'true'
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://otel-collector:4317' }}
         shell: bash
         run: |
           echo "OTel emission enabled. Replace this step with your org-standard OTel emission (e.g., otel-cli) targeting $OTEL_EXPORTER_OTLP_ENDPOINT."
