@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  merge_group: {}
+  merge_group: {} # Required for merge queue status checks
 
 # Global least-privilege
 permissions:
@@ -13,7 +13,13 @@ jobs:
   ci:
     name: required-checks
     runs-on: ubuntu-latest
-    # Job-scoped minimal permissions as specified
+    # Job-scoped minimal permissions (ASVS 5.0 V12.1.1 compliance)
+    # contents: read - Access repository code (required)
+    # id-token: write - Generate OIDC tokens for attestations (required)  
+    # attestations: write - Create SLSA provenance attestations (required)
+    # packages: write - NOT GRANTED (only if attesting/pushing images)
+    # pull-requests: write - NOT GRANTED (only if posting PR comments)
+    # security-events: write - NOT GRANTED (only if uploading SARIF)
     permissions:
       id-token: write
       attestations: write
