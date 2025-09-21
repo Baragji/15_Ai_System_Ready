@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
   merge_group: {}
 
-# Global  least-privilege
+# Global least-privilege
 permissions:
   contents: read
 
